@@ -181,6 +181,26 @@ button.play:hover{filter:brightness(1.08)}
 .clock{font-family:var(--mono);font-size:12.5px;color:var(--ink-soft);margin-left:auto;font-variant-numeric:tabular-nums}
 .clock b{color:var(--ink);font-weight:600}
 
+.livebar{
+  display:flex;align-items:center;gap:8px 22px;flex-wrap:wrap;
+  padding:9px 14px;border:1px solid var(--rule);border-top:0;background:var(--surface);
+  font-family:var(--mono);font-size:11.5px;color:var(--ink-faint);
+  font-variant-numeric:tabular-nums;
+}
+.livebar .item b{color:var(--ink);font-weight:600}
+.livebar .item.good b{color:var(--clear)}
+.livebar .pill{
+  display:inline-flex;align-items:center;gap:7px;letter-spacing:.1em;text-transform:uppercase;
+  border:1px solid var(--rule-strong);border-radius:2px;padding:3px 9px;color:var(--ink-faint);
+}
+.livebar .pill i{width:6px;height:6px;border-radius:50%;background:var(--ink-faint);display:inline-block}
+.livebar .pill.on{color:var(--fraud);border-color:var(--fraud)}
+.livebar .pill.on i{background:var(--fraud);animation:lbpulse 1.6s ease-in-out infinite}
+@keyframes lbpulse{0%,100%{opacity:1}50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.livebar .pill.on i{animation:none}}
+.livebar .sep{flex:1}
+.livebar .stale b{color:var(--warn)}
+
 .chartwrap{border:1px solid var(--rule);background:var(--surface);padding:6px 8px 0}
 svg.chart{display:block;width:100%;height:auto}
 
@@ -634,7 +654,7 @@ img{max-width:100%}
     <h2>The stream</h2>
     <span class="n">21.6 h of held-out traffic</span>
   </div>
-  <p class="snote">Red bands are attacks; grey bands are <em>legitimate</em> spikes — flash sales and subscription runs that spike harder than most attacks and draw no alerts. Press play to replay the stream in accelerated wall-clock time and watch alerts fire as they did live.</p>
+  <p class="snote">Red bands are attacks; grey bands are <em>legitimate</em> spikes — flash sales and subscription runs that spike harder than most attacks and draw no alerts. Press play to replay the stream in accelerated wall-clock time and watch alerts fire as they did live. The bar below is live while it runs: the IST clock is your real time, and precision and recall accumulate as the replay advances. It is a replay of a recorded run, not a detector scoring now — <span class="mono">razorpay_fraud live</span> does that.</p>
 
   <div class="timeline-tools">
     <button class="play" id="playBtn" type="button">▶ Replay</button>
@@ -644,6 +664,17 @@ img{max-width:100%}
       <button type="button" data-mult="4" aria-pressed="false">4×</button>
     </div>
     <span class="clock" id="clock">stream clock <b>—</b> · alerts <b>0</b></span>
+  </div>
+
+  <div class="livebar" id="livebar">
+    <span class="pill" id="lbPill"><i></i><span id="lbPillText">idle</span></span>
+    <span class="item">IST <b id="lbWall">--:--:--</b></span>
+    <span class="item">stream <b id="lbStream">—</b></span>
+    <span class="item" id="lbFreshWrap">last alert <b id="lbFresh">—</b></span>
+    <span class="sep"></span>
+    <span class="item">precision <b id="lbPrec">—</b></span>
+    <span class="item">recall <b id="lbRec">—</b></span>
+    <span class="item good">caught <b id="lbCaught">—</b></span>
   </div>
 
   <div class="chartwrap"><svg class="chart" id="tl" viewBox="0 0 1000 406" role="img" aria-label="Payments per minute over the test split, with attack episodes shaded and alerts marked by risk score"></svg></div>
@@ -917,6 +948,101 @@ drawTimeline();
 /* ===================== replay ===================== */
 var feed = $("feed"), clockEl = $("clock"), playBtn = $("playBtn"), feedCount = $("feedCount");
 var playing = false, rafId = null, mult = 2, startWall = 0, cursor = 0;
+
+/* Browsers stop firing requestAnimationFrame on a hidden or background tab, so
+   a replay started and then left in another tab would silently freeze rather
+   than continue. If no frame arrives shortly after starting, drive the same
+   tick from a timer instead; timers keep running when frames do not. */
+var frames = 0, fallbackId = null;
+function schedule(){
+  if (fallbackId !== null) return;   // a timer is already driving the loop
+  rafId = requestAnimationFrame(tick);
+}
+function startFallbackIfStalled(){
+  window.setTimeout(function(){
+    if (playing && frames === 0 && fallbackId === null){
+      fallbackId = window.setInterval(tick, 1000 / 30);
+    }
+  }, 300);
+}
+function clearLoop(){
+  if (rafId) cancelAnimationFrame(rafId);
+  rafId = null;
+  if (fallbackId !== null){ clearInterval(fallbackId); fallbackId = null; }
+}
+
+/* ---------- live readouts ----------
+   Three things are genuinely live here and one is not, and the labels keep
+   them apart. The IST clock is the viewer's real wall time. The freshness
+   counter is real time since the replay last emitted an alert. Precision and
+   recall really do accumulate as the replay advances. The *stream* clock is
+   the recorded payment time -- this is a replay, not a detector scoring now. */
+var IST_TZ = "Asia/Kolkata";
+var SIM_START = (D.meta && D.meta.split_ts) ? D.meta.split_ts : 0;
+var lastAlertAt = null;
+var trueSoFar = 0, binCursor = 0, fraudSeen = 0;
+
+function istWall(){
+  return new Date().toLocaleTimeString("en-GB", {timeZone: IST_TZ, hour12: false});
+}
+function istStream(hours){
+  if (!SIM_START) return clockLabel(hours);
+  return new Date((SIM_START + hours * 3600) * 1000).toLocaleString("en-GB", {
+    timeZone: IST_TZ, day: "numeric", month: "short",
+    hour: "2-digit", minute: "2-digit", hour12: false
+  });
+}
+
+/* Recall needs a denominator: how many fraudulent payments have gone past the
+   playhead. The per-minute bins carry that, so walk them alongside the alerts
+   rather than scanning from the start on every frame. */
+function advanceBins(hours){
+  while (binCursor < D.timeline.length && D.timeline[binCursor].h <= hours){
+    fraudSeen += D.timeline[binCursor].f;
+    binCursor++;
+  }
+}
+
+function setPill(on, text){
+  var pill = $("lbPill");
+  pill.className = "pill" + (on ? " on" : "");
+  $("lbPillText").textContent = text;
+}
+
+function paintFinal(){
+  var totalTrue = D.alerts.filter(function(a){ return a.is_fraud; }).length;
+  var totalFraud = D.n_test_fraud || 0;
+  $("lbStream").textContent = istStream(maxH) + " IST";
+  $("lbPrec").textContent = D.alerts.length ? (totalTrue / D.alerts.length).toFixed(3) : "—";
+  $("lbRec").textContent = totalFraud ? (totalTrue / totalFraud).toFixed(3) : "—";
+  $("lbCaught").textContent = num(totalTrue) + " / " + num(D.alerts.length) + " alerts";
+  $("lbFresh").textContent = "—";
+  $("lbFreshWrap").className = "item";
+}
+
+function paintLive(hours, running){
+  $("lbStream").textContent = istStream(hours) + " IST";
+  $("lbPrec").textContent = cursor ? (trueSoFar / cursor).toFixed(3) : "—";
+  $("lbRec").textContent = fraudSeen ? (trueSoFar / fraudSeen).toFixed(3) : "—";
+  $("lbCaught").textContent = num(trueSoFar) + " / " + num(cursor) + " alerts";
+  if (!running){
+    $("lbFresh").textContent = "—";
+    $("lbFreshWrap").className = "item";
+  }
+}
+
+/* The wall clock ticks on its own, and the freshness counter ages on its own.
+   Both are on timers rather than the animation frame, so they keep running
+   when the replay is not. */
+setInterval(function(){ $("lbWall").textContent = istWall(); }, 1000);
+$("lbWall").textContent = istWall();
+
+setInterval(function(){
+  if (!playing || lastAlertAt === null) return;
+  var age = (performance.now() - lastAlertAt) / 1000;
+  $("lbFresh").textContent = age.toFixed(1) + "s ago";
+  $("lbFreshWrap").className = "item" + (age > 3 ? " stale" : "");
+}, 200);
 var BASE_SECONDS = 26; // wall-clock seconds for the whole 21.6 h at 1x
 
 function feedRow(a){
@@ -946,6 +1072,7 @@ function showAllAlerts(){
   recent.forEach(function(a){ feed.appendChild(feedRow(a)); });
   feedCount.textContent = "last 40 of " + num(D.alerts.length);
   clockEl.innerHTML = "stream clock <b>" + clockLabel(maxH) + "</b> · alerts <b>" + num(D.alerts.length) + "</b>";
+  paintFinal();
 }
 
 function setPlayhead(h, visible){
@@ -965,16 +1092,21 @@ function setDotsVisible(uptoIndex){
 
 function tick(){
   if (!playing) return;
+  frames++;
   var elapsed = (performance.now() - startWall) / 1000;
   var h = (elapsed / (BASE_SECONDS / mult)) * maxH;
   if (h >= maxH){ h = maxH; }
   setPlayhead(h, true);
 
+  advanceBins(h);
+
   var added = 0;
   while (cursor < D.alerts.length && D.alerts[cursor].h <= h){
     var a = D.alerts[cursor];
     feed.insertBefore(feedRow(a), feed.firstChild);
+    if (a.is_fraud) trueSoFar++;
     cursor++; added++;
+    lastAlertAt = performance.now();
     if (added > 60) break; // never block the frame on a dense burst
   }
   if (added){
@@ -983,27 +1115,36 @@ function tick(){
   }
   setDotsVisible(cursor);
   clockEl.innerHTML = "stream clock <b>" + clockLabel(h) + "</b> · alerts <b>" + num(cursor) + "</b>";
+  paintLive(h, true);
 
   if (h >= maxH){ stop(true); return; }
-  rafId = requestAnimationFrame(tick);
+  schedule();
 }
 
 function start(){
   playing = true;
   cursor = 0;
+  trueSoFar = 0; binCursor = 0; fraudSeen = 0; lastAlertAt = null;
+  setPill(true, "replaying");
+  $("lbFresh").textContent = "—";
+  paintLive(0, true);
   feed.innerHTML = "";
   feedCount.textContent = "0 so far";
   setDotsVisible(0);
   playBtn.textContent = "■ Stop";
   startWall = performance.now();
-  rafId = requestAnimationFrame(tick);
+  frames = 0;
+  schedule();
+  startFallbackIfStalled();
 }
 function stop(finished){
   playing = false;
-  if (rafId) cancelAnimationFrame(rafId);
+  clearLoop();
   playBtn.textContent = "▶ Replay";
   setPlayhead(maxH, false);
   setDotsVisible(D.alerts.length);
+  setPill(false, finished ? "complete" : "idle");
+  paintFinal();
   if (finished){
     feedCount.textContent = num(D.alerts.length) + " alerts · " +
       num(D.alerts.filter(function(a){return a.is_fraud;}).length) + " genuine";
