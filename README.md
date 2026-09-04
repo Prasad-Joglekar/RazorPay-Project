@@ -390,3 +390,7 @@ Everything is seeded. `python -m razerpay_fraud demo --seed 7` reproduces every
 number above. `--days`, `--cards` and `--rate-scale` vary the difficulty;
 episode counts scale with the horizon so the fraud rate stays near 1% at any
 setting.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
