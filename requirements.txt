@@ -1,0 +1,5 @@
+# The detector, the simulator, the streaming layer and the metrics are pure
+# standard library. Everything below is optional and only affects the
+# comparison models and the charts -- the pipeline degrades cleanly without it.
+scikit-learn>=1.3    # gbdt + isolation forest comparison detectors
+matplotlib>=3.7      # timeline / PR / cost / latency charts

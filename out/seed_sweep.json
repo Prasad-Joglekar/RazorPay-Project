@@ -1,0 +1,204 @@
+{
+  "seeds": [
+    {
+      "seed": 1,
+      "n_test": 53602,
+      "n_test_fraud": 707,
+      "n_fraud_episodes": 20,
+      "threshold": 0.001282,
+      "precision": 0.9777,
+      "recall": 0.867,
+      "f1": 0.919,
+      "average_precision": 0.8617,
+      "alert_rate": 0.0117,
+      "episode_detection": 1.0,
+      "savings_pct": 0.8912,
+      "worst_hard_negative_flag_rate": 0.0
+    },
+    {
+      "seed": 2,
+      "n_test": 49654,
+      "n_test_fraud": 481,
+      "n_fraud_episodes": 18,
+      "threshold": 0.000536,
+      "precision": 0.9736,
+      "recall": 0.842,
+      "f1": 0.903,
+      "average_precision": 0.8392,
+      "alert_rate": 0.00838,
+      "episode_detection": 1.0,
+      "savings_pct": 0.885,
+      "worst_hard_negative_flag_rate": 0.01408
+    },
+    {
+      "seed": 3,
+      "n_test": 49688,
+      "n_test_fraud": 380,
+      "n_fraud_episodes": 16,
+      "threshold": 0.000439,
+      "precision": 0.9493,
+      "recall": 0.8368,
+      "f1": 0.8895,
+      "average_precision": 0.8274,
+      "alert_rate": 0.00674,
+      "episode_detection": 1.0,
+      "savings_pct": 0.9066,
+      "worst_hard_negative_flag_rate": 0.00116
+    },
+    {
+      "seed": 5,
+      "n_test": 60089,
+      "n_test_fraud": 619,
+      "n_fraud_episodes": 20,
+      "threshold": 0.000155,
+      "precision": 0.945,
+      "recall": 0.8611,
+      "f1": 0.9011,
+      "average_precision": 0.8578,
+      "alert_rate": 0.00939,
+      "episode_detection": 1.0,
+      "savings_pct": 0.8811,
+      "worst_hard_negative_flag_rate": 0.0
+    },
+    {
+      "seed": 7,
+      "n_test": 57389,
+      "n_test_fraud": 379,
+      "n_fraud_episodes": 16,
+      "threshold": 0.005041,
+      "precision": 0.9307,
+      "recall": 0.8153,
+      "f1": 0.8692,
+      "average_precision": 0.7958,
+      "alert_rate": 0.00579,
+      "episode_detection": 1.0,
+      "savings_pct": 0.8526,
+      "worst_hard_negative_flag_rate": 0.00611
+    },
+    {
+      "seed": 11,
+      "n_test": 58111,
+      "n_test_fraud": 965,
+      "n_fraud_episodes": 26,
+      "threshold": 0.00274,
+      "precision": 0.9767,
+      "recall": 0.8684,
+      "f1": 0.9194,
+      "average_precision": 0.8663,
+      "alert_rate": 0.01476,
+      "episode_detection": 1.0,
+      "savings_pct": 0.8879,
+      "worst_hard_negative_flag_rate": 0.00089
+    },
+    {
+      "seed": 13,
+      "n_test": 58218,
+      "n_test_fraud": 693,
+      "n_fraud_episodes": 22,
+      "threshold": 4e-05,
+      "precision": 0.9489,
+      "recall": 0.8571,
+      "f1": 0.9007,
+      "average_precision": 0.8513,
+      "alert_rate": 0.01075,
+      "episode_detection": 1.0,
+      "savings_pct": 0.8766,
+      "worst_hard_negative_flag_rate": 0.02027
+    },
+    {
+      "seed": 17,
+      "n_test": 53297,
+      "n_test_fraud": 633,
+      "n_fraud_episodes": 20,
+      "threshold": 9.1e-05,
+      "precision": 0.9505,
+      "recall": 0.8499,
+      "f1": 0.8974,
+      "average_precision": 0.8429,
+      "alert_rate": 0.01062,
+      "episode_detection": 1.0,
+      "savings_pct": 0.8767,
+      "worst_hard_negative_flag_rate": 0.01
+    },
+    {
+      "seed": 19,
+      "n_test": 52282,
+      "n_test_fraud": 490,
+      "n_fraud_episodes": 24,
+      "threshold": 0.000388,
+      "precision": 0.9408,
+      "recall": 0.8102,
+      "f1": 0.8706,
+      "average_precision": 0.7963,
+      "alert_rate": 0.00807,
+      "episode_detection": 1.0,
+      "savings_pct": 0.8907,
+      "worst_hard_negative_flag_rate": 0.05
+    },
+    {
+      "seed": 23,
+      "n_test": 54578,
+      "n_test_fraud": 577,
+      "n_fraud_episodes": 13,
+      "threshold": 0.00713,
+      "precision": 0.9751,
+      "recall": 0.8839,
+      "f1": 0.9273,
+      "average_precision": 0.8832,
+      "alert_rate": 0.00958,
+      "episode_detection": 1.0,
+      "savings_pct": 0.8861,
+      "worst_hard_negative_flag_rate": 0.005
+    }
+  ],
+  "summary": {
+    "precision": {
+      "median": 0.9498918833394863,
+      "min": 0.9307228915662651,
+      "max": 0.9776714513556619,
+      "mean": 0.9568244726009402
+    },
+    "recall": {
+      "median": 0.8535319341006544,
+      "min": 0.810204081632653,
+      "max": 0.8838821490467937,
+      "mean": 0.8491795341708496
+    },
+    "f1": {
+      "median": 0.9008906181006258,
+      "min": 0.869198312236287,
+      "max": 0.9272727272727272,
+      "mean": 0.8997205511838308
+    },
+    "average_precision": {
+      "median": 0.8471026066956989,
+      "min": 0.7957641434445352,
+      "max": 0.8831654876656974,
+      "mean": 0.842177092938687
+    },
+    "alert_rate": {
+      "median": 0.00948434651230306,
+      "min": 0.005785080764606458,
+      "max": 0.014764846586704754,
+      "mean": 0.009578002572458858
+    },
+    "episode_detection": {
+      "median": 1.0,
+      "min": 1.0,
+      "max": 1.0,
+      "mean": 1.0
+    },
+    "savings_pct": {
+      "median": 0.8855647443400659,
+      "min": 0.8526001919559615,
+      "max": 0.9066225722780007,
+      "mean": 0.8834472932199059
+    },
+    "worst_hard_negative": {
+      "median": 0.005555555555555556,
+      "min": 0.0,
+      "max": 0.05,
+      "mean": 0.01075117208236193
+    }
+  }
+}

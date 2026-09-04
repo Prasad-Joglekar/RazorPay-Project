@@ -1,0 +1,8 @@
+# LF in the repository and in the working tree.
+#
+# Without this, Git on Windows checks these files out with CRLF. That breaks
+# run_demo.sh the moment anyone runs it on Linux or in CI, and it makes diffs
+# show whole-file changes when the content did not change.
+* text=auto eol=lf
+
+*.png binary
