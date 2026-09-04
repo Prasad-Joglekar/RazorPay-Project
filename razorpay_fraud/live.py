@@ -33,6 +33,7 @@ of which make it a demonstration tool, not something to expose to a network.
 from __future__ import annotations
 
 import json
+import os
 import threading
 import time
 from collections import deque
@@ -515,7 +516,24 @@ def serve(
     thread = threading.Thread(target=engine.run, name="detector", daemon=True)
     thread.start()
 
-    server = ThreadingHTTPServer((host, port), make_handler(engine))
+    class Server(ThreadingHTTPServer):
+        # On Windows SO_REUSEADDR does not mean "rebind after TIME_WAIT", it
+        # means "bind even though someone else already has this port". Two
+        # detectors then share 8800 and requests land on whichever, which looks
+        # exactly like the running server ignoring your code changes. Refuse
+        # instead, and say so. Elsewhere the flag is wanted: without it a
+        # restart fails while the old socket lingers in TIME_WAIT.
+        allow_reuse_address = os.name != "nt"
+
+    try:
+        server = Server((host, port), make_handler(engine))
+    except OSError as exc:
+        engine.stop()
+        raise SystemExit(
+            f"cannot bind {host}:{port} -- {exc}. "
+            f"Another detector is probably already running; stop it, or pass "
+            f"--port with a free port."
+        ) from exc
     server.daemon_threads = True
     url = f"http://{host}:{port}/"
     print(f"live fraud console on {url}")

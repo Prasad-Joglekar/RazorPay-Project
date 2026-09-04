@@ -1051,12 +1051,12 @@ img{max-width:100%}
 </div>
 <div class="liveoff" id="lvOffline" hidden>
   <h3>No detector is running</h3>
-  <p>This tab shows the detector <em>working</em> \u2014 scoring payments one at a time and
+  <p>This tab shows the detector <em>working</em> — scoring payments one at a time and
   pushing each alert over an open connection as it happens. That needs a process to run,
   which static hosting does not provide, so it connects to one on your own machine.</p>
   <p class="lc-cmd">python -m razorpay_fraud live</p>
   <p>Then press <b>Connect</b>. The address above is where it listens by default.
-  Everything else on this page \u2014 the Overview and the Console \u2014 needs nothing running.</p>
+  Everything else on this page — the Overview and the Console — needs nothing running.</p>
 </div>
 <div class="livecontent">
 
@@ -2535,7 +2535,7 @@ return {
       off.hidden = (state === "connecting");
     }
   }
-  function liveConnect(base){
+  function liveConnect(base, openTab){
     base = (base || "").trim().replace(/\/$/, "");
     if (!base){ setConn("offline", "enter an address"); return; }
     setConn("connecting", "connecting to " + base + " …");
@@ -2544,15 +2544,19 @@ return {
       .then(function(){
         setConn("connected", "connected to " + base);
         if (window.__liveModule) window.__liveModule.connect(base);
+        // Also open the detector's own page. Embedding works here, but a
+        // strict page CSP can block the connection entirely -- a real tab
+        // pointed at the server always works.
+        if (openTab){ window.open(base, "_blank", "noopener"); }
       })
       .catch(function(){ setConn("offline", "no detector at " + base); });
   }
   document.getElementById("lvConnect").addEventListener("click", function(){
     liveProbed = true;
-    liveConnect(document.getElementById("lvAddr").value);
+    liveConnect(document.getElementById("lvAddr").value, true);
   });
   document.getElementById("lvAddr").addEventListener("keydown", function(e){
-    if (e.key === "Enter"){ liveProbed = true; liveConnect(this.value); }
+    if (e.key === "Enter"){ liveProbed = true; liveConnect(this.value, true); }
   });
 
   window.addEventListener("popstate", function(){
