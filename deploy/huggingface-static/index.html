@@ -201,7 +201,46 @@ button.play:hover{filter:brightness(1.08)}
 .livebar .sep{flex:1}
 .livebar .stale b{color:var(--warn)}
 
-.chartwrap{border:1px solid var(--rule);background:var(--surface);padding:6px 8px 0}
+.chartwrap{border:1px solid var(--rule);background:var(--surface);padding:6px 8px 0;position:relative}
+
+/* Dots are 2.6px so the scatter stays readable, which is far too small to
+   click. A transparent stroke widens the hit area to ~16px without changing
+   how the chart looks. */
+.dot-true,.dot-false{cursor:pointer;stroke:transparent;stroke-width:8;paint-order:stroke}
+.dot-true:hover,.dot-false:hover{stroke:var(--ink);stroke-opacity:.22}
+.dot-sel{stroke:var(--ink)!important;stroke-opacity:.9!important;stroke-width:2.5!important}
+
+.dotcard{
+  position:absolute;z-index:8;width:min(370px,calc(100% - 20px));
+  background:var(--surface);border:1px solid var(--rule-strong);
+  box-shadow:0 2px 4px rgba(0,0,0,.18),0 14px 40px -20px rgba(0,0,0,.65);
+  padding:0;font-size:12.5px;
+}
+.dotcard .dc-head{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;
+  border-bottom:1px solid var(--rule);background:var(--surface-sunk);
+}
+.dotcard .dc-score{font-family:var(--mono);font-size:17px;font-weight:600;font-variant-numeric:tabular-nums}
+.dotcard .dc-id{font-family:var(--mono);font-size:11.5px;color:var(--ink-soft);line-height:1.35}
+.dotcard .dc-id b{color:var(--ink);font-weight:500}
+.dotcard .dc-x{
+  margin-left:auto;background:none;border:0;color:var(--ink-faint);cursor:pointer;
+  font-family:var(--mono);font-size:15px;line-height:1;padding:2px 4px;
+}
+.dotcard .dc-x:hover{color:var(--ink)}
+.dotcard .dc-body{padding:11px 12px;max-height:186px;overflow-y:auto}
+.dotcard .dc-why{margin:0 0 11px;padding-left:16px}
+.dotcard .dc-why li{margin-bottom:6px;color:var(--ink-soft);line-height:1.45}
+.dotcard .dc-why b{font-family:var(--mono);font-size:11.5px;color:var(--ink);font-weight:600}
+.dotcard .dc-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+.dotcard .dc-grid div{
+  display:flex;justify-content:space-between;gap:8px;font-family:var(--mono);font-size:11px;
+  padding:2px 0;border-bottom:1px dotted var(--rule);
+}
+.dotcard .dc-grid span:first-child{color:var(--ink-faint)}
+.dotcard .dc-grid span:last-child{font-variant-numeric:tabular-nums;font-weight:500}
+.dotcard .dc-truth{margin-top:11px;font-family:var(--mono);font-size:11px;color:var(--ink-soft);line-height:1.6}
+@media (max-width:620px){.dotcard .dc-grid{grid-template-columns:1fr}}
 svg.chart{display:block;width:100%;height:auto}
 
 .legend{
@@ -677,7 +716,7 @@ img{max-width:100%}
     <span class="item good">caught <b id="lbCaught">—</b></span>
   </div>
 
-  <div class="chartwrap"><svg class="chart" id="tl" viewBox="0 0 1000 406" role="img" aria-label="Payments per minute over the test split, with attack episodes shaded and alerts marked by risk score"></svg></div>
+  <div class="chartwrap" id="tlwrap"><div class="dotcard" id="dotcard" hidden></div><svg class="chart" id="tl" viewBox="0 0 1000 406" role="img" aria-label="Payments per minute over the test split, with attack episodes shaded and alerts marked by risk score"></svg></div>
 
   <div class="legend">
     <span><i class="sw" style="background:var(--ink)"></i>payments / min</span>
@@ -945,6 +984,81 @@ function drawTimeline(){
 }
 drawTimeline();
 
+/* ---------- click a dot, get the decision behind it ----------
+   The scatter is the densest thing on the page and was inert: 332 alerts you
+   could see but not interrogate. Each dot now opens the same audit record the
+   alert explorer shows -- the rules that fired and the feature values at the
+   moment of the decision. */
+(function dotCards(){
+  var card = $("dotcard"), wrap = $("tlwrap"), selected = null;
+
+  function close(){
+    card.hidden = true;
+    if (selected){ selected.classList.remove("dot-sel"); selected = null; }
+  }
+
+  function render(a){
+    var tag = a.is_fraud ? "atk" : "warnt";
+    var color = a.is_fraud ? "var(--fraud)" : "var(--warn)";
+    return '<div class="dc-head">' +
+        '<span class="dc-score" style="color:' + color + '">' + a.score.toFixed(2) + '</span>' +
+        '<span class="dc-id"><b>' + esc(a.payment_id) + '</b><br>' +
+          inr(a.amount_inr, 2) + ' · ' + istStream(a.h) + ' IST</span>' +
+        '<span class="tag ' + tag + '">' + (a.is_fraud ? "fraud" : "false alarm") + '</span>' +
+        '<button class="dc-x" type="button" aria-label="Close">✕</button>' +
+      '</div>' +
+      '<div class="dc-body">' +
+        '<ul class="dc-why">' + (a.reasons.length ? a.reasons.map(function(r){
+          return '<li><b>' + esc(r.rule) + '</b> <span class="mono">(' + r.score.toFixed(2) + ')</span><br>' +
+                 esc(r.detail) + '</li>';
+        }).join("") : '<li>no rule detail recorded</li>') + '</ul>' +
+        '<div class="dc-grid">' + Object.keys(a.features).map(function(k){
+          return '<div><span>' + esc(k) + '</span><span>' +
+                 Number(a.features[k]).toLocaleString("en-IN") + '</span></div>';
+        }).join("") + '</div>' +
+        '<div class="dc-truth">card <b>' + esc(a.card_id) + '</b><br>device <b>' + esc(a.device_id) +
+          '</b><br>merchant <b>' + esc(a.merchant_id) + '</b><br>ground truth: ' +
+          (a.is_fraud ? "FRAUD — " + esc(a.pattern)
+                      : "legitimate" + (a.pattern ? " — " + esc(a.pattern) : "")) +
+        '</div>' +
+      '</div>';
+  }
+
+  function open(dot, a){
+    if (selected) selected.classList.remove("dot-sel");
+    selected = dot;
+    dot.classList.add("dot-sel");
+    card.innerHTML = render(a);
+    card.hidden = false;
+
+    // Anchor beside the dot, then keep the whole card inside the chart box --
+    // a dot near the right edge would otherwise push it off the page.
+    var wr = wrap.getBoundingClientRect(), dr = dot.getBoundingClientRect();
+    var left = dr.left - wr.left + 14;
+    var top = dr.top - wr.top + 14;
+    if (left + card.offsetWidth > wr.width - 8) left = dr.left - wr.left - card.offsetWidth - 14;
+    if (left < 8) left = 8;
+    if (top + card.offsetHeight > wr.height - 8) top = dr.top - wr.top - card.offsetHeight - 14;
+    if (top < 8) top = 8;
+    card.style.left = left + "px";
+    card.style.top = top + "px";
+  }
+
+  $("tl").addEventListener("click", function(e){
+    var dot = e.target.closest("circle[data-i]");
+    if (!dot){ close(); return; }
+    if (dot.getAttribute("opacity") === "0") return;   // not yet reached in a replay
+    open(dot, D.alerts[parseInt(dot.dataset.i, 10)]);
+  });
+  card.addEventListener("click", function(e){ if (e.target.closest(".dc-x")) close(); });
+  document.addEventListener("keydown", function(e){ if (e.key === "Escape") close(); });
+  document.addEventListener("click", function(e){
+    if (!card.hidden && !e.target.closest("#tlwrap")) close();
+  });
+
+  window.__closeDotCard = close;   // the replay closes it when it restarts
+})();
+
 /* ===================== replay ===================== */
 var feed = $("feed"), clockEl = $("clock"), playBtn = $("playBtn"), feedCount = $("feedCount");
 var playing = false, rafId = null, mult = 2, startWall = 0, cursor = 0;
@@ -1122,6 +1236,7 @@ function tick(){
 }
 
 function start(){
+  if (window.__closeDotCard) window.__closeDotCard();
   playing = true;
   cursor = 0;
   trueSoFar = 0; binCursor = 0; fraudSeen = 0; lastAlertAt = null;
