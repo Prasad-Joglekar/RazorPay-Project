@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -339,8 +340,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_live = sub.add_parser("live", help="serve the live streaming console in a browser")
     add_common(p_live)
-    p_live.add_argument("--host", default="127.0.0.1")
-    p_live.add_argument("--port", type=int, default=8800)
+    # Defaults stay local. A hosting platform assigns the port (and requires
+    # binding all interfaces), so both are read from the environment when set
+    # -- deploying should not need a code change, and running locally should
+    # not expose the console to the network by accident.
+    p_live.add_argument("--host", default=os.environ.get("HOST", "127.0.0.1"))
+    p_live.add_argument("--port", type=int, default=int(os.environ.get("PORT", 8800)))
     p_live.add_argument(
         "--speed", type=float, default=300.0,
         help="stream speed multiplier; 300x means one stream-hour every 12 seconds",
