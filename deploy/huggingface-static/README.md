@@ -6,7 +6,7 @@ colorTo: gray
 sdk: static
 app_file: index.html
 pinned: false
-short_description: Detecting payment fraud spikes, with the false positives priced in
+short_description: Detecting payment fraud spikes, false positives priced in
 ---
 
 # Fraud Spike Console
@@ -27,3 +27,5 @@ terminals, real air travel — and each is scored separately. Precision median
 
 Payments are simulated. Source, full evaluation and a live streaming version
 you can run locally: <https://github.com/Prasad-Joglekar/RazorPay-Project>
+
+<!-- Deployed: https://huggingface.co/spaces/Prasad-Joglekar/fraud-spike-console -->

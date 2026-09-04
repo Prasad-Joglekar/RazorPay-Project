@@ -139,6 +139,13 @@ to expose to a network.
 ./deploy/huggingface-static/push-static-space.sh https://huggingface.co/spaces/<user>/<space>
 ```
 
+On Windows PowerShell, which cannot execute a `.sh` file directly and will
+print nothing at all if you try:
+
+```bash
+bash deploy/huggingface-static/push-static-space.sh https://huggingface.co/spaces/<user>/<space>
+```
+
 The page is entirely self-contained: all 332 alerts, the timeline and the PR
 curves are embedded, and it makes no network calls at all. Static hosting runs
 it exactly as it runs anywhere else. See
