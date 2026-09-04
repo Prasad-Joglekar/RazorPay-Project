@@ -1,0 +1,10 @@
+# Only razerpay_fraud/ is copied into the image, but keeping the build context
+# small still speeds up the upload to a remote builder.
+.venv/
+.git/
+.claude/
+out/
+tests/
+__pycache__/
+*.pyc
+*.md
