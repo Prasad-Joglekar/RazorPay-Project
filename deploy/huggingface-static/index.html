@@ -421,6 +421,11 @@ footer{border-top:1px solid var(--rule);padding-top:18px;color:var(--ink-faint);
 .liveconn .lc-pill.bad{color:var(--warn);border-color:var(--warn)}
 .liveconn .lc-pill.bad i{background:var(--warn)}
 .liveconn .lc-addr{display:flex;align-items:center;gap:7px;color:var(--ink-faint)}
+.liveconn .lc-note{color:var(--ink-faint)}
+.liveconn .lc-sep{flex:1}
+.liveconn .lc-btn.ghost{background:var(--surface);color:var(--ink-soft);border:1px solid var(--rule)}
+.liveconn .lc-btn.ghost:hover{border-color:var(--rule-strong);color:var(--ink)}
+#lvBackToSim{margin-left:6px}
 .liveconn input{
   font-family:var(--mono);font-size:11.5px;background:var(--surface);color:var(--ink);
   border:1px solid var(--rule);border-radius:2px;padding:6px 9px;width:190px;
@@ -1043,20 +1048,19 @@ img{max-width:100%}
 <div id="view-live" class="disconnected" hidden>
 
 <div class="liveconn" id="lvConn">
-  <span class="lc-pill" id="lvConnPill"><i></i><span id="lvConnText">checking for a detector…</span></span>
-  <label class="lc-addr">detector
+  <span class="lc-pill on" id="lvConnPill"><i></i><span id="lvConnText">simulated</span></span>
+  <span class="lc-note" id="lvConnNote">the recorded run, replayed as if it were arriving now — nothing to install</span>
+  <span class="lc-sep"></span>
+  <label class="lc-addr">real detector
     <input id="lvAddr" type="text" spellcheck="false" value="http://127.0.0.1:8800">
   </label>
-  <button class="lc-btn" id="lvConnect" type="button">Connect</button>
+  <button class="lc-btn ghost" id="lvConnect" type="button">Connect</button>
 </div>
 <div class="liveoff" id="lvOffline" hidden>
-  <h3>No detector is running</h3>
-  <p>This tab shows the detector <em>working</em> — scoring payments one at a time and
-  pushing each alert over an open connection as it happens. That needs a process to run,
-  which static hosting does not provide, so it connects to one on your own machine.</p>
+  <h3>Could not reach that detector</h3>
+  <p>This tab is already showing a simulated run, which needs nothing installed. To watch a <em>real</em> detector instead — scoring payments it has never seen, on your own machine — start one and press Connect again.</p>
   <p class="lc-cmd">python -m razorpay_fraud live</p>
-  <p>Then press <b>Connect</b>. The address above is where it listens by default.
-  Everything else on this page — the Overview and the Console — needs nothing running.</p>
+  <p>The address above is where it listens by default. <button class="lc-btn" id="lvBackToSim" type="button">Back to the simulation</button></p>
 </div>
 <div class="livecontent">
 
@@ -2034,6 +2038,9 @@ var alertsById={};
 
 /* ---------------- controls ---------------- */
 function post(body){
+  // Pause, restart and speed drive the simulator when one is running, and the
+  // real server otherwise. Same buttons either way.
+  if(simMode){ simControl(body); return; }
   return fetch(BASE+"/api/control",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})
     .catch(function(){});
 }
@@ -2473,15 +2480,139 @@ function onError(){
   pill.className="livepill idle";
   $("lv-pilltext").textContent="reconnecting";
 }
+
+/* ---------------- simulated detection ----------------
+   The published page has no server, but the point of this view is watching the
+   detector work. So the recorded run is replayed as the event stream a live
+   detector would produce -- the same snapshot/status/bin/alert messages, fed
+   through the same onMessage handler. Every counter, the chart, the feed and
+   the rule tally are therefore the real rendering code, not a mock-up of it.
+
+   What is genuinely live: the IST wall clock, the seconds since the last alert,
+   and the counters accumulating as the run advances. What is not: the payments
+   themselves, which were scored earlier. The header says so. */
+var simMode=false, simTimer=null, S=null;
+
+function simEmit(msg){ onMessage({data: JSON.stringify(msg)}); }
+
+function simPrepare(P){
+  var start = P.meta.split_ts;
+  var thr = 0.005;
+  (P.detectors||[]).forEach(function(d){ if(d.name==="rules") thr=d.threshold; });
+  return {
+    start: start,
+    threshold: thr,
+    bins: P.timeline.map(function(b){ return {m: Math.floor(b.h*60), n: b.n, f: b.f}; }),
+    alerts: P.alerts.map(function(a){
+      return {payment_id:a.payment_id, sim_ts:start + a.h*3600, sim_elapsed_s:a.h*3600,
+        score:a.score, amount_inr:a.amount_inr, card_id:a.card_id, device_id:a.device_id,
+        merchant_id:a.merchant_id, reasons:a.reasons||[],
+        top_rule:(a.reasons&&a.reasons[0]?a.reasons[0].rule:"—"),
+        features:a.features||{}, is_fraud:a.is_fraud, pattern:a.pattern, episode_id:a.episode_id};
+    }),
+    span: P.timeline.length*60,
+    // The detector really does warm on the dev split before scoring anything;
+    // showing that is part of showing how it works.
+    warmTotal: Math.max(0,(P.meta.n_transactions||0)-(P.n_test||0)),
+    meta: P.meta
+  };
+}
+
+function simStatus(){
+  return {phase:S.phase, speed:S.speed, paused:S.paused, threshold:S.d.threshold,
+    sim_elapsed_s:S.elapsed, sim_span_s:S.d.span,
+    sim_now_ts:S.d.start+S.elapsed, sim_start_ts:S.d.start,
+    server_unix:Date.now()/1000,
+    n_processed:S.nProc, n_alerts:S.nAlerts, n_true_alerts:S.nTrue,
+    n_fraud_seen:S.nFraud, throughput:S.throughput,
+    warm_done:S.warmDone, warm_total:S.d.warmTotal};
+}
+
+function simReset(){
+  S.phase="warming"; S.elapsed=0; S.warmDone=0;
+  S.bi=0; S.ai=0; S.nProc=0; S.nAlerts=0; S.nTrue=0; S.nFraud=0;
+  S.throughput=0; S.lastStatus=0; S.paused=false;
+  simEmit({type:"snapshot", snapshot:{seq:0, status:simStatus(), meta:S.d.meta,
+    timeline:[], alerts:[], rule_tally:{}, audit_features:[]}});
+}
+
+function simControl(body){
+  if(!S) return;
+  if("speed" in body) S.speed=Math.max(1,Math.min(20000,+body.speed));
+  if("paused" in body) S.paused=!!body.paused;
+  if(body.restart) simReset();
+  simEmit({type:"status", status:simStatus()});
+}
+
+var SIM_WARM_SECONDS = 3.5;
+
+function simTick(dt){
+  if(S.paused) return;
+  if(S.phase==="warming"){
+    S.warmDone=Math.min(S.d.warmTotal, S.warmDone + S.d.warmTotal*(dt/SIM_WARM_SECONDS));
+    if(S.warmDone>=S.d.warmTotal){ S.phase="streaming"; }
+    simEmit({type:"status", status:simStatus()});
+    return;
+  }
+  if(S.phase!=="streaming") return;
+
+  var before=S.nProc;
+  S.elapsed=Math.min(S.d.span, S.elapsed + dt*S.speed);
+
+  while(S.bi<S.d.bins.length && S.d.bins[S.bi].m*60 <= S.elapsed){
+    var b=S.d.bins[S.bi++];
+    S.nProc+=b.n; S.nFraud+=b.f;
+    simEmit({type:"bin", bin:b});
+  }
+  var guard=0;
+  while(S.ai<S.d.alerts.length && S.d.alerts[S.ai].sim_elapsed_s <= S.elapsed && guard++<400){
+    var a=S.d.alerts[S.ai++];
+    S.nAlerts++; if(a.is_fraud) S.nTrue++;
+    simEmit({type:"alert", alert:a});
+  }
+  S.throughput=dt>0?(S.nProc-before)/dt:0;
+
+  var now=Date.now();
+  if(now-S.lastStatus>400 || S.elapsed>=S.d.span){
+    S.lastStatus=now;
+    if(S.elapsed>=S.d.span && S.phase!=="complete"){
+      S.phase="complete";
+      // Hold the finished numbers briefly, then run it again.
+      setTimeout(function(){ if(simMode && S && S.phase==="complete") simReset(); }, 6000);
+    }
+    simEmit({type:"status", status:simStatus()});
+  }
+}
+
 return {
   connect: function(base){
+    if(simTimer){ clearInterval(simTimer); simTimer=null; }
+    simMode=false;
     BASE = base.replace(/\/$/, "");
     if (es) es.close();
     es = new EventSource(BASE + "/api/stream");
     es.onmessage = onMessage;
     es.onerror = onError;
   },
-  disconnect: function(){ if (es){ es.close(); es = null; } }
+  simulate: function(payload){
+    if (es){ es.close(); es=null; }
+    if(simTimer) clearInterval(simTimer);
+    simMode=true;
+    S={d:simPrepare(payload), speed:1200, paused:false};
+    simReset();
+    var last=Date.now();
+    simTimer=setInterval(function(){
+      var now=Date.now(), dt=Math.min(0.5,(now-last)/1000);
+      last=now;
+      simTick(dt);
+    }, 100);
+  },
+  isSimulated: function(){ return simMode; },
+  disconnect: function(){
+    if (es){ es.close(); es = null; }
+    if (simTimer){ clearInterval(simTimer); simTimer=null; }
+    simMode=false;
+  }
 };
 })();
 
@@ -2499,9 +2630,9 @@ return {
       tabs[k].setAttribute("aria-selected", k === name ? "true" : "false");
     });
     document.getElementById("navHint").textContent = hints[name];
-    if (name === "live" && !liveProbed){
-      liveProbed = true;
-      liveConnect(document.getElementById("lvAddr").value);
+    if (name === "live" && !liveStarted){
+      liveStarted = true;
+      startSimulation();
     }
     if (push && location.hash !== "#" + name){
       // A real history entry, so the browser Back button moves between the
@@ -2519,20 +2650,53 @@ return {
      So it connects to one the viewer is running. Probe with a plain fetch first:
      an EventSource that cannot reach anything retries forever and reports nothing
      useful, which would leave the tab looking merely broken. */
-  var liveProbed = false;
+  var liveStarted = false;
+  /* The live view's own header claims a detector is running right now. That is
+     true when connected to one and false when simulating, so it says whichever
+     it is -- the whole value of this project is not overstating what it does. */
+  function setLiveCopy(simulated){
+    var eyebrow = document.querySelector("#view-live .eyebrow");
+    var lede = document.querySelector("#view-live .lede");
+    if (eyebrow) eyebrow.textContent = simulated
+      ? "streaming detector · simulated run"
+      : "streaming detector · localhost";
+    if (lede) lede.textContent = simulated
+      ? "A recorded run of the held-out stream, replayed as if it were arriving now. "
+        + "Every alert, score and reason below is the detector's real output, produced "
+        + "when the run was scored rather than as you watch — the clock and the "
+        + "counters are live, the payments are not. Connect a real detector on the right "
+        + "to watch one score payments it has never seen."
+      : "The detector is running right now in a background thread, one payment at a time. "
+        + "Every alert below was produced the moment its payment was scored, and pushed "
+        + "here over an open connection.";
+  }
+
+  function startSimulation(){
+    var payload = JSON.parse(document.getElementById("payload").textContent);
+    if (window.__liveModule) window.__liveModule.simulate(payload);
+    setConn("simulated", "simulated");
+    setLiveCopy(true);
+  }
   function setConn(state, msg){
     var pill = document.getElementById("lvConnPill");
     var txt = document.getElementById("lvConnText");
     var view = document.getElementById("view-live");
     var off = document.getElementById("lvOffline");
-    pill.className = "lc-pill" + (state === "connected" ? " on" : state === "offline" ? " bad" : "");
+    var note = document.getElementById("lvConnNote");
+    pill.className = "lc-pill" + (state === "offline" ? " bad" : state === "connecting" ? "" : " on");
     txt.textContent = msg;
-    if (state === "connected"){
+    if (state === "offline"){
+      view.classList.add("disconnected");
+      off.hidden = false;
+      note.textContent = "nothing answered at that address";
+    } else {
       view.classList.remove("disconnected");
       off.hidden = true;
-    } else {
-      view.classList.add("disconnected");
-      off.hidden = (state === "connecting");
+      note.textContent = state === "connected"
+        ? "a real detector, scoring payments it has never seen"
+        : state === "connecting"
+          ? "checking for a detector …"
+          : "the recorded run, replayed as if it were arriving now — nothing to install";
     }
   }
   function liveConnect(base, openTab){
@@ -2543,6 +2707,7 @@ return {
       .then(function(r){ if (!r.ok) throw new Error("bad status"); return r.json(); })
       .then(function(){
         setConn("connected", "connected to " + base);
+        setLiveCopy(false);
         if (window.__liveModule) window.__liveModule.connect(base);
         // Also open the detector's own page. Embedding works here, but a
         // strict page CSP can block the connection entirely -- a real tab
@@ -2552,11 +2717,12 @@ return {
       .catch(function(){ setConn("offline", "no detector at " + base); });
   }
   document.getElementById("lvConnect").addEventListener("click", function(){
-    liveProbed = true;
+    liveStarted = true;
     liveConnect(document.getElementById("lvAddr").value, true);
   });
+  document.getElementById("lvBackToSim").addEventListener("click", startSimulation);
   document.getElementById("lvAddr").addEventListener("keydown", function(e){
-    if (e.key === "Enter"){ liveProbed = true; liveConnect(this.value, true); }
+    if (e.key === "Enter"){ liveStarted = true; liveConnect(this.value, true); }
   });
 
   window.addEventListener("popstate", function(){
