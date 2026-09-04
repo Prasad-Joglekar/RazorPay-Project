@@ -131,6 +131,23 @@ It binds to localhost, and ground-truth labels ride along in the payload so the
 page can show live precision — both make it a demonstration tool, not something
 to expose to a network.
 
+### Deploying the live console
+
+```bash
+./deploy/cloudrun/deploy.sh
+```
+
+Google Cloud Run, whose always-free tier covers this comfortably — the service
+scales to zero, so it costs nothing while nobody is watching. Full steps and the
+reasoning behind each flag: **[deploy/cloudrun/DEPLOY.md](deploy/cloudrun/DEPLOY.md)**.
+
+The image installs nothing: the detector, simulator, streaming layer and the
+console's HTTP server are pure standard library, so it is ~150 MB and builds in
+seconds.
+
+A Hugging Face Docker Space works too and needs no card, but Docker Spaces now
+require a paid plan — see [deploy/huggingface/](deploy/huggingface/DEPLOY.md).
+
 ### Watching it run — terminal
 
 ```bash

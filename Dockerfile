@@ -1,5 +1,8 @@
 # Container for the live streaming console (`razorpay_fraud live`).
 #
+# Targets Google Cloud Run (see deploy/cloudrun/). Also works on any other
+# container host, including a Hugging Face Docker Space.
+#
 # No pip install step, on purpose. The detector, simulator, streaming layer and
 # the console's HTTP server are pure standard library; scikit-learn and
 # matplotlib are only needed by `demo`, which builds the comparison models and

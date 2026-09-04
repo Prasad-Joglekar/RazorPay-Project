@@ -4,7 +4,7 @@ emoji: 🛡️
 colorFrom: blue
 colorTo: gray
 sdk: docker
-app_port: 7860
+app_port: 8080
 pinned: false
 short_description: Live streaming detector for payment fraud spikes
 ---

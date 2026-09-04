@@ -1,7 +1,10 @@
 # Deploying the live console to Hugging Face Spaces
 
-The Space runs `python -m razorpay_fraud live` in a Docker container. Free tier
-is enough: the image needs no third-party packages, and the app peaks around
+> **Docker Spaces now require a paid Hugging Face plan** -- only Static Spaces
+> are free. For a free live deployment see `deploy/cloudrun/` instead; these
+> instructions still apply if you have a PRO subscription.
+
+The Space runs `python -m razorpay_fraud live` in a Docker container. the image needs no third-party packages, and the app peaks around
 126 MB with a ~6 second cold start.
 
 ## 1. Create the Space
@@ -41,7 +44,7 @@ cp deploy/huggingface/README.md space/README.md   # note: renamed to README.md
 cd space && git add -A && git commit -m "Deploy live fraud console" && git push
 ```
 
-The rename matters. Spaces reads `sdk: docker` and `app_port: 7860` from the
+The rename matters. Spaces reads `sdk: docker` and `app_port: 8080` from the
 frontmatter of the repo's own `README.md`; without it the Space will not start.
 </details>
 

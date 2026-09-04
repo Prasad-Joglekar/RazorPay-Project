@@ -1,0 +1,13 @@
+# Keeps `gcloud run deploy --source .` from uploading 14 MB of virtualenv and
+# the generated reports on every deploy. Only the package is copied into the
+# image (see Dockerfile), but everything not listed here is still uploaded to
+# Cloud Build first.
+.git/
+.venv/
+.claude/
+out/
+tests/
+__pycache__/
+*.pyc
+deploy/
+*.md
