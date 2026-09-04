@@ -11,6 +11,15 @@ look like attacks, the operating threshold is chosen on a dev split and never
 touched again, and the cost of a false positive is priced in rupees rather than
 assumed equal to the cost of a miss.
 
+**[Open the console](https://huggingface.co/spaces/Prasad-Joglekar/fraud-spike-console)**
+— three views, nothing to install:
+
+| view | what it is |
+|---|---|
+| **Overview** | the results and the design decisions behind them, in one page |
+| **Console** | the held-out run: press Replay, click any point on the chart, open any of the 332 alerts |
+| **Live** | a detection run streaming as if it were arriving now — warm-up, alerts firing, precision and recall accumulating |
+
 ## Results
 
 The primary number is a **median with a range**, not a single run. Where attack
@@ -128,8 +137,16 @@ its own. One engine thread owns all detector state and is the only writer, so
 there is no lock on the hot path.
 
 It binds to localhost, and ground-truth labels ride along in the payload so the
-page can show live precision — both make it a demonstration tool, not something
-to expose to a network.
+page can show live precision — both make it a demonstration tool, not
+something to expose to a network. It sends permissive CORS headers so the
+published console can offer to connect to it, which is safe only because of
+those two facts.
+
+Starting a second detector on a port already in use fails with a clear message
+rather than succeeding. On Windows `SO_REUSEADDR` does not mean "rebind after
+TIME_WAIT", it means "bind even though someone else holds this port": two
+detectors then share 8800 and requests land on whichever answers, which
+presents as the running server ignoring your code changes.
 
 ### Deploying
 
@@ -146,10 +163,12 @@ print nothing at all if you try:
 bash deploy/huggingface-static/push-static-space.sh https://huggingface.co/spaces/<user>/<space>
 ```
 
-The page is entirely self-contained: all 332 alerts, the timeline and the PR
-curves are embedded, and it makes no network calls at all. Static hosting runs
-it exactly as it runs anywhere else. See
-**[deploy/huggingface-static/](deploy/huggingface-static/)**.
+The page carries its own data: all 332 alerts with their audit records, the
+per-minute timeline and the PR curves are embedded, so static hosting runs it
+exactly as it runs anywhere else. Its Live view replays that recorded run as
+the event stream a live detector would produce, so it needs nothing running
+either — see **[The published console](#the-published-console)** below.
+Build and push with **[deploy/huggingface-static/](deploy/huggingface-static/)**.
 
 **The live SSE console** needs a Python process. Google Cloud Run's always-free
 tier covers it (a card must be on file, nothing is charged inside the limits):
@@ -204,6 +223,49 @@ python -m razorpay_fraud explain --only-false-positives -n 5
 ```bash
 python -m razorpay_fraud simulate --razorpay-shape --out out/payments.jsonl
 ```
+
+## The published console
+
+One page, three views, all of its data embedded. It is what
+`deploy/huggingface-static/push-static-space.sh` publishes, and it needs no
+server.
+
+**Overview** — the results, the evaluation design and the decisions worth
+defending, written for someone deciding whether to read the code.
+
+**Console** — the held-out run.
+
+* **Replay** streams the recorded run in accelerated time. While it runs the bar above the
+  chart is live: your real IST wall clock, seconds since the last alert, and
+  precision and recall accumulating as the playhead advances. They converge on
+  the report's 0.931 / 0.815, which is a decent check that the page and the
+  pipeline agree.
+* **Hover the chart** for a guide line with the time and traffic rate under the
+  cursor. **Click** it for what happened there: payments in that window, which
+  episode was in progress, and every alert inside it. The window is five
+  minutes rather than one — at 1,296 bins across ~930px a single minute is
+  0.7px wide, narrower than the cursor.
+* **Click any dot** for the decision behind it: the rules that fired with their
+  scores, the feature values at the moment of the decision, the card, device
+  and merchant, and the ground truth. Dots are drawn at 2.6px to keep the
+  scatter readable, which is far too small to hit, so a transparent stroke
+  widens the click target to about 16px without changing how the chart looks.
+* **The alert explorer** lists all 332 with filters by rule and by outcome.
+
+**Live** — a detection run streaming as if it were arriving now: warm-up,
+then alerts firing, counters climbing, the trailing chart filling, the rule
+tally growing. Pause, restart and speed all work.
+
+It is a *simulation* and says so. Rather than mock a UI, it synthesises the
+exact event stream the server sends — the same `snapshot`, `status`, `bin`
+and `alert` messages, fed through the same handler — so the counters, chart,
+feed and tally are the real rendering code. The clock and the counters are
+live; the payments were scored earlier. The header states which mode it is in,
+because a page claiming a live detector while replaying a recording would
+undercut the one thing this project is about.
+
+Connecting a real detector is the secondary control on that bar, and is worth
+doing: it is the only way to watch one score payments it has never seen.
 
 ## How it works
 
@@ -352,7 +414,7 @@ whole design. `reasons()` now always names the strongest contributing rule.
   being a fair model of payment traffic. The hard negatives are the main defence
   against self-congratulation, but real traffic will contain look-alike patterns
   nobody thought to inject.
-- **`geo_impossible` per-payment recall is 39%**, against 100% episode
+- **`geo_impossible` per-payment recall is 36%**, against 100% episode
   detection. Only the payment *arriving* in the far city shows the velocity jump;
   the ones after it look local. The episode metric is the honest one here, and
   the per-payment number is reported rather than quietly dropped.
@@ -363,11 +425,11 @@ whole design. `reasons()` now always names the strongest contributing rule.
 
   | # | rule | what it actually was |
   |---|---|---|
-  | 13 | `MERCHANT_UNDER_ATTACK` | innocent bystanders — every one is a legitimate payment at a merchant that was genuinely under card-testing attack within 5 minutes |
-  | 10 | `DEVICE_ENUMERATION` / `IP_CARD_FANOUT` | busy POS terminals in an unlucky run of declines |
-  | 3 | `GEO_VELOCITY` | the victim's own legitimate payment, alternating with remote fraud on the same card |
+  | 11 | `IP_CARD_FANOUT` | in-store POS terminals: a shop counter legitimately runs hundreds of distinct cards through one device on one IP in an hour, the same shape as card-dump enumeration |
+  | 7 | `MERCHANT_UNDER_ATTACK` | innocent bystanders — every one a legitimate payment at a merchant that was genuinely under card-testing attack within 5 minutes |
+  | 5 | `GEO_VELOCITY` | the victim's own legitimate payment, alternating with remote fraud on the same card |
 
-- **Merchant-level rules cause collateral damage by construction.** All 13
+- **Merchant-level rules cause collateral damage by construction.** All 7
   bystander alerts are arguably correct behaviour — during a live attack you
   would throttle the merchant and accept some friction — but they are counted
   as false positives here rather than excused, because the customer whose
@@ -379,13 +441,18 @@ whole design. `reasons()` now always names the strongest contributing rule.
 - **The cost model is assumptions, not measurements.** ₹1,500 chargeback fee,
   2% take rate, ₹40 goodwill. They are stated explicitly and swept in
   `cost_sensitivity` precisely so they can be argued with.
-- **The GBDT beats the rules on AP (0.990 vs 0.851) and recall.** The rules are
+- **The GBDT beats the rules on AP (0.980 vs 0.796) and recall.** The rules are
   primary anyway, for explainability and because they need no labels — real
   fraud labels arrive weeks late via chargebacks. A production system would run
   both.
 - **State partitioning is not solved.** Partitioning a Kafka topic by `card_id`
   keeps card windows correct but splits device- and IP-level state across
   workers, needing a second partitioning or a shared store.
+- **The published console's Live view is a replay, not a detector.** It
+  streams a recorded run as the event stream a live detector would produce, so
+  the page can show how the thing works without anything installed. The clock
+  and the counters are live; the payments were scored earlier. The page says so
+  on its face, and `razorpay_fraud live` is the real thing.
 - **Latency figures are processing time**, not end-to-end pipeline time.
 
 ## Mapping to production
@@ -417,8 +484,13 @@ razorpay_fraud/
   live.py        live console: engine thread + SSE server
   live_page.html the live console's page, served by live.py
   dashboard.py   exports one JSON bundle for the web dashboard
-  cli.py         demo | live | simulate | replay | explain
+  sweep.py       reruns the whole experiment across seeds for an error bar
+  cli.py         demo | live | sweep | simulate | replay | explain
 tests/           117 tests, stdlib unittest (incl. CLI smoke tests)
+deploy/
+  huggingface-static/  the published console: built index.html + push script
+  cloudrun/            deploy the live SSE console to Google Cloud Run
+  huggingface/         the same, on a Docker Space (needs a paid plan)
 out/             generated: RESULTS.md, report.json, alerts.jsonl, *.png
 ```
 
