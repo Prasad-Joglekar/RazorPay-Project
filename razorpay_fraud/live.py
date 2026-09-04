@@ -388,12 +388,27 @@ def make_handler(engine: LiveEngine):
             pass
 
         # ---------------------------------------------------------- helpers
+        def _cors(self) -> None:
+            """Allow any origin.
+
+            The published console is served from static hosting and offers to
+            connect to a detector running on the viewer's own machine, which is
+            a cross-origin request. This server binds to localhost and serves
+            nothing but synthetic payments, so there is no secret for a hostile
+            page to read -- but that is the reason it is safe here, not a
+            general one. Do not copy this onto a server that holds real data.
+            """
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+
         def _send_json(self, payload: dict, status: int = 200) -> None:
             body = json.dumps(payload).encode("utf-8")
             self.send_response(status)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", "no-store")
+            self._cors()
             self.end_headers()
             self.wfile.write(body)
 
@@ -402,6 +417,7 @@ def make_handler(engine: LiveEngine):
             self.send_header("Content-Type", content_type)
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", "no-store")
+            self._cors()
             self.end_headers()
             self.wfile.write(body)
 
@@ -432,6 +448,7 @@ def make_handler(engine: LiveEngine):
             # Chunked encoding is what HTTP/1.1 would otherwise negotiate, and
             # an SSE body has no known length, so opt out explicitly.
             self.send_header("Transfer-Encoding", "identity")
+            self._cors()
             self.end_headers()
 
             last = engine.bus.seq
@@ -454,6 +471,13 @@ def make_handler(engine: LiveEngine):
             body = json.dumps(event, separators=(",", ":"))
             self.wfile.write(b"data: " + body.encode("utf-8") + b"\n\n")
             self.wfile.flush()
+
+        def do_OPTIONS(self):  # noqa: N802
+            """Preflight for the cross-origin POST to /api/control."""
+            self.send_response(204)
+            self.send_header("Content-Length", "0")
+            self._cors()
+            self.end_headers()
 
         # ------------------------------------------------------------- POST
         def do_POST(self):  # noqa: N802

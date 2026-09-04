@@ -125,6 +125,14 @@ button{font-family:var(--mono);font-size:11.5px;cursor:pointer}
 .dot-true:hover,.dot-false:hover{stroke:var(--ink);stroke-opacity:.22}
 .dot-sel{stroke:var(--ink)!important;stroke-opacity:.9!important;stroke-width:2.5!important}
 
+#tl{cursor:crosshair}
+.hover-line{stroke:var(--accent);stroke-width:1;stroke-dasharray:3 3;pointer-events:none;opacity:.85}
+.hover-lab{fill:var(--ink);font-family:var(--mono);font-size:10px;pointer-events:none}
+.hover-lab-bg{fill:var(--surface);stroke:var(--rule-strong);stroke-width:1;pointer-events:none}
+.dotcard .mi-sec{font-family:var(--mono);font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-faint);margin:10px 0 6px;padding-bottom:3px;border-bottom:1px solid var(--rule)}
+.dotcard .dc-body > .mi-sec:first-child{margin-top:0}
+.dotcard .mi-alert{padding:5px 7px;margin:0 -7px;border-radius:2px;cursor:pointer;line-height:1.45}
+.dotcard .mi-alert:hover{background:var(--surface-sunk)}
 .dotcard{position:absolute;z-index:8;width:min(360px,calc(100% - 20px));
   background:var(--surface);border:1px solid var(--rule-strong);
   box-shadow:0 2px 4px rgba(0,0,0,.18),0 14px 40px -20px rgba(0,0,0,.65);font-size:12.5px}
@@ -247,6 +255,7 @@ footer{margin-top:28px;border-top:1px solid var(--rule);padding-top:14px;
     <div class="shead"><h2>Payments per minute</h2><span class="n" id="tlNote">live</span></div>
     <div class="chartwrap" id="tlwrap">
       <div class="dotcard" id="dotcard" hidden></div>
+      <div class="dotcard" id="momentcard" hidden></div>
       <svg id="tl" viewBox="0 0 720 340" role="img" aria-label="Live payments per minute with alerts plotted by risk score"></svg>
     </div>
     <div class="tally" id="tallyBox">
@@ -348,6 +357,91 @@ function syncSpeedButtons(speed){
   });
 }
 
+/* ---------------- hover the chart, then click a moment ---------------- */
+var hoverView=null, hLine=null, hBg=null, hLab=null;
+function hourGuides(){
+  var svg=$("tl");
+  if(hLine&&hLine.parentNode===svg) return;
+  hLine=svgEl("line",{"class":"hover-line",y1:trafficTop,y2:scoreBot,opacity:"0"});
+  hBg=svgEl("rect",{"class":"hover-lab-bg",rx:"2",height:"14",opacity:"0"});
+  hLab=svgEl("text",{"class":"hover-lab",opacity:"0"});
+  svg.appendChild(hLine);svg.appendChild(hBg);svg.appendChild(hLab);
+}
+function minuteAt(clientX){
+  if(!hoverView) return null;
+  var svg=$("tl"), r=svg.getBoundingClientRect();
+  var vb=(clientX-r.left)/r.width*C.w;
+  var span=Math.max(1,hoverView.lastM-hoverView.firstM);
+  var frac=(vb-C.l)/(C.w-C.l-C.r);
+  return Math.round(hoverView.firstM+Math.max(0,Math.min(1,frac))*span);
+}
+function xForMinute(m){
+  var span=Math.max(1,hoverView.lastM-hoverView.firstM);
+  return C.l+((m-hoverView.firstM)/span)*(C.w-C.l-C.r);
+}
+function showHover(clientX){
+  var m=minuteAt(clientX); if(m===null) return;
+  hourGuides();
+  var bin=state.timeline.filter(function(b){return b.m===m;})[0];
+  var x=xForMinute(m);
+  hLine.setAttribute("x1",x);hLine.setAttribute("x2",x);hLine.setAttribute("opacity","1");
+  var start=state.status?state.status.sim_start_ts:0;
+  var t=start?istHM(start+m*60):(m+" min");
+  var text=t+" IST"+(bin?" · "+bin.n+"/min":"");
+  hLab.textContent=text;
+  var w=text.length*5.9+10;
+  var lx=Math.min(C.w-C.r-w,Math.max(C.l,x+6));
+  hLab.setAttribute("x",lx+5);hLab.setAttribute("y",trafficTop+10);
+  hBg.setAttribute("x",lx);hBg.setAttribute("y",trafficTop-1);hBg.setAttribute("width",w);
+  hLab.setAttribute("opacity","1");hBg.setAttribute("opacity","1");
+}
+function hideHover(){ if(hLine){hLine.setAttribute("opacity","0");hLab.setAttribute("opacity","0");hBg.setAttribute("opacity","0");} }
+function renderMoment(m){
+  var HALF=2, lo=m-HALF, hi=m+HALF, n=0, f=0;
+  state.timeline.forEach(function(b){ if(b.m>=lo&&b.m<=hi){n+=b.n;f+=b.f;} });
+  var hits=state.alerts.filter(function(a){
+    var am=Math.floor(a.sim_elapsed_s/60); return am>=lo&&am<=hi;
+  });
+  var caught=hits.filter(function(a){return a.is_fraud;}).length;
+  var start=state.status?state.status.sim_start_ts:0;
+  var span=start?(istHM(start+lo*60)+" – "+istHM(start+(hi+1)*60)+" IST"):(lo+"–"+hi+" min");
+  var rows=hits.length?hits.map(function(a){
+    var top=a.reasons&&a.reasons.length?a.reasons[0].rule:"—";
+    return '<div class="mi-alert" data-pid="'+esc(a.payment_id)+'"><span class="mono" style="color:'+
+      (a.is_fraud?"var(--fraud)":"var(--warn)")+';font-weight:600">'+a.score.toFixed(2)+
+      '</span> <span class="mono">'+esc(top)+'</span><br><span class="mono" style="color:var(--ink-faint);font-size:10.5px">'+
+      esc(a.payment_id)+' · '+inr(a.amount_inr,2)+'</span></div>';
+  }).join(""):'<div style="color:var(--ink-faint)">no alerts in this window</div>';
+  return '<div class="dc-head"><span class="dc-id"><b>'+span+'</b><br>'+n+
+      ' payments in these '+(hi-lo+1)+' min · '+f+' fraudulent</span>'+
+      '<button class="dc-x" type="button" aria-label="Close">✕</button></div>'+
+    '<div class="dc-body"><div class="mi-sec">alerts in this window — '+hits.length+
+      (hits.length?', '+caught+' genuine':'')+'</div>'+rows+'</div>';
+}
+function closeMoment(){ var c=$("momentcard"); if(c) c.hidden=true; }
+$("tl").addEventListener("mousemove",function(e){ showHover(e.clientX); });
+$("tl").addEventListener("mouseleave",hideHover);
+$("tl").addEventListener("click",function(e){
+  if(e.target.closest("circle[data-pid]")) return;
+  var m=minuteAt(e.clientX); if(m===null) return;
+  var card=$("momentcard"), wrap=$("tlwrap");
+  card.innerHTML=renderMoment(m);
+  card.hidden=false;
+  var wr=wrap.getBoundingClientRect();
+  var left=e.clientX-wr.left+14;
+  if(left+card.offsetWidth>wr.width-8) left=e.clientX-wr.left-card.offsetWidth-14;
+  if(left<8) left=8;
+  card.style.left=left+"px"; card.style.top="14px";
+});
+$("momentcard").addEventListener("click",function(e){
+  if(e.target.closest(".dc-x")){ closeMoment(); return; }
+  var row=e.target.closest(".mi-alert"); if(!row) return;
+  var dot=document.querySelector('#tl circle[data-pid="'+row.dataset.pid+'"]');
+  closeMoment();
+  if(dot) dot.dispatchEvent(new MouseEvent("click",{bubbles:true}));
+});
+document.addEventListener("keydown",function(e){ if(e.key==="Escape") closeMoment(); });
+
 /* ---------------- click a dot, get the decision behind it ---------------- */
 var selectedPid=null;
 function closeDotCard(){
@@ -438,6 +532,7 @@ function drawChart(){
   }
   var lastM=bins[bins.length-1].m;
   var firstM=Math.max(0,lastM-WINDOW_MIN+1);
+  hoverView={firstM:firstM,lastM:lastM};
   var shown=bins.filter(function(b){return b.m>=firstM;});
   var spanM=Math.max(1,lastM-firstM);
   var maxN=1;
