@@ -31,7 +31,10 @@ else
 fi
 
 echo "==> staging index.html and README.md"
-rm -f index.html README.md .gitattributes
+# Replace the Space contents wholesale. The Static template ships an
+# index.html, a README.md and a style.css; removing only the files we happen to
+# write would leave the template's stylesheet behind for nobody to notice.
+find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
 cp "$HERE/index.html" index.html
 cp "$HERE/README.md" README.md
 cp "$ROOT/.gitattributes" .gitattributes
@@ -45,4 +48,13 @@ fi
 git commit --quiet -m "Publish fraud spike console"
 echo "==> pushing to main (username + a write-scoped access token as the password)"
 git push -u origin main
-echo "==> done. It goes live within a few seconds at ${SPACE_URL%.git}"
+
+# The failure mode this catches: the push appears to succeed but the Space is
+# still serving the template, because nothing actually replaced index.html.
+size=$(wc -c < index.html)
+echo
+if [ "$size" -lt 100000 ]; then
+  echo "!! index.html is only ${size} bytes -- that is not the console page." >&2
+  exit 1
+fi
+echo "==> pushed index.html (${size} bytes). Live within a few seconds at ${SPACE_URL%.git}"
