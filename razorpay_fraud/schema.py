@@ -19,7 +19,7 @@ Two deliberate deviations, both documented rather than hidden:
 
 The ``is_fraud`` / ``episode_id`` / ``pattern`` fields are **ground truth**.
 They exist only to score the detector and are never visible to feature
-extraction -- see :mod:`razerpay_fraud.features`, which only ever reads the
+extraction -- see :mod:`razorpay_fraud.features`, which only ever reads the
 :class:`Transaction` fields listed in ``OBSERVABLE_FIELDS``.
 """
 

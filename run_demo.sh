@@ -3,4 +3,4 @@
 set -euo pipefail
 PY="${PYTHON:-python}"
 "$PY" -m unittest discover -s tests -t .
-"$PY" -m razerpay_fraud demo --out out
+"$PY" -m razorpay_fraud demo --out out

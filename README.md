@@ -17,7 +17,7 @@ The primary number is a **median with a range**, not a single run. Where attack
 episodes fall relative to the dev/test cut moves precision several points, and
 quoting the seed that looked best is the oldest trick in this genre.
 
-**Rule detector across 10 seeds** (`python -m razerpay_fraud sweep`), threshold
+**Rule detector across 10 seeds** (`python -m razorpay_fraud sweep`), threshold
 re-chosen on dev for each seed and frozen before scoring test:
 
 | metric | median | range |
@@ -88,7 +88,7 @@ python -m unittest discover -s tests -t .
 117 tests, standard library `unittest`, no plugins. The suite includes a
 **CLI smoke layer** (`tests/test_cli_smoke.py`) that byte-compiles and imports
 every module in the package, builds the argument parser, renders `--help` for
-every subcommand, and runs `python -m razerpay_fraud` in a real subprocess.
+every subcommand, and runs `python -m razorpay_fraud` in a real subprocess.
 
 That layer exists because of a real failure: a batch edit left a syntax error in
 `cli.py` and the whole suite still passed, because every other test imports the
@@ -97,7 +97,7 @@ broken and 107 green tests said otherwise. The smoke tests are verified against
 that exact bug — reintroduce it and the suite goes red.
 
 ```bash
-python -m razerpay_fraud demo --out out
+python -m razorpay_fraud demo --out out
 ```
 
 `demo` generates the data, extracts features, trains the comparison models,
@@ -111,7 +111,7 @@ the comparison models and the charts, and everything else still runs.
 ### Watching it run — live console
 
 ```bash
-python -m razerpay_fraud live --speed 300
+python -m razorpay_fraud live --speed 300
 ```
 
 Serves a browser console at `http://127.0.0.1:8800` with the detector **actually
@@ -134,7 +134,7 @@ to expose to a network.
 ### Watching it run — terminal
 
 ```bash
-python -m razerpay_fraud replay --skip-hours 7.8 --hours 1.6 --speed 900
+python -m razorpay_fraud replay --skip-hours 7.8 --hours 1.6 --speed 900
 ```
 
 The same thing without a browser: replays the held-out stream at `--speed`×, printing a
@@ -160,11 +160,11 @@ Attacks are sparse by design, so a window starting at hour 0 may legitimately
 contain none. Run `demo` first and read `out/timeline.png` to pick a busy window.
 
 ```bash
-python -m razerpay_fraud explain --only-false-positives -n 5
+python -m razorpay_fraud explain --only-false-positives -n 5
 ```
 
 ```bash
-python -m razerpay_fraud simulate --razorpay-shape --out out/payments.jsonl
+python -m razorpay_fraud simulate --razorpay-shape --out out/payments.jsonl
 ```
 
 ## How it works
@@ -367,7 +367,7 @@ not a redesign. `simulate --razorpay-shape` emits payment entities directly.
 ## Layout
 
 ```
-razerpay_fraud/
+razorpay_fraud/
   schema.py      Transaction / Episode / Dataset; Razorpay-shaped export
   simulator.py   labelled stream: 3 attacks + 6 hard negatives
   features.py    O(1)/payment causal sliding-window feature extraction
@@ -386,7 +386,7 @@ out/             generated: RESULTS.md, report.json, alerts.jsonl, *.png
 
 ## Reproducing
 
-Everything is seeded. `python -m razerpay_fraud demo --seed 7` reproduces every
+Everything is seeded. `python -m razorpay_fraud demo --seed 7` reproduces every
 number above. `--days`, `--cards` and `--rate-scale` vary the difficulty;
 episode counts scale with the horizon so the fraud rate stays near 1% at any
 setting.

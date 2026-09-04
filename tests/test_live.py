@@ -11,8 +11,8 @@ from __future__ import annotations
 import threading
 import unittest
 
-from razerpay_fraud.live import EventBus, LiveEngine
-from razerpay_fraud.simulator import SimulatorConfig
+from razorpay_fraud.live import EventBus, LiveEngine
+from razorpay_fraud.simulator import SimulatorConfig
 
 # Small enough to run in a couple of seconds, large enough that attacks land.
 TINY = SimulatorConfig(days=0.6, n_cards=900, rate_scale=1.0)
@@ -153,7 +153,7 @@ class TestSeedSweep(unittest.TestCase):
     """The sweep is what puts an error bar on the headline number."""
 
     def test_a_single_seed_produces_coherent_metrics(self):
-        from razerpay_fraud.sweep import run_seed
+        from razorpay_fraud.sweep import run_seed
 
         result = run_seed(3, days=0.6)
         self.assertGreater(result.n_test, 100)
@@ -166,7 +166,7 @@ class TestSeedSweep(unittest.TestCase):
         json.dumps(result.as_dict())
 
     def test_different_seeds_give_different_splits(self):
-        from razerpay_fraud.sweep import run_seed
+        from razorpay_fraud.sweep import run_seed
 
         a = run_seed(1, days=0.6)
         b = run_seed(2, days=0.6)

@@ -1,4 +1,4 @@
-# Container for the live streaming console (`razerpay_fraud live`).
+# Container for the live streaming console (`razorpay_fraud live`).
 #
 # No pip install step, on purpose. The detector, simulator, streaming layer and
 # the console's HTTP server are pure standard library; scikit-learn and
@@ -17,7 +17,7 @@ ENV HOME=/home/user \
     PYTHONUNBUFFERED=1
 WORKDIR /home/user/app
 
-COPY --chown=user:user razerpay_fraud/ ./razerpay_fraud/
+COPY --chown=user:user razorpay_fraud/ ./razorpay_fraud/
 
 # Spaces routes traffic to app_port from README.md and requires binding all
 # interfaces. cli.py reads both from the environment, so no code change here.
@@ -28,4 +28,4 @@ EXPOSE 7860
 # --days 1 gives a ~6s cold start and ~126 MB peak, comfortably inside a free
 # tier. The default 3 days costs ~14s and ~170 MB; raise it if the Space has
 # room and you want a longer stream to replay.
-CMD ["python", "-m", "razerpay_fraud", "live", "--days", "1", "--speed", "300"]
+CMD ["python", "-m", "razorpay_fraud", "live", "--days", "1", "--speed", "300"]

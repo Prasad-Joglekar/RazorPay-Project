@@ -9,7 +9,7 @@ __pycache__/
 
 # Generated output.
 #
-# out/ is written by `python -m razerpay_fraud demo`, so almost all of it is
+# out/ is written by `python -m razorpay_fraud demo`, so almost all of it is
 # reproducible and stays untracked. The exceptions below are tracked on
 # purpose: the README links to them, and someone reading the repo on GitHub
 # should see the results and the charts without having to run anything first.

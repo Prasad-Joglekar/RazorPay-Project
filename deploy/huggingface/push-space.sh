@@ -2,7 +2,7 @@
 # Assemble a Hugging Face Space from this repo and push it.
 #
 # A Space needs three things at its root: Dockerfile, README.md carrying the
-# Hugging Face frontmatter, and the razerpay_fraud package. This copies exactly
+# Hugging Face frontmatter, and the razorpay_fraud package. This copies exactly
 # those into a clone of the Space repo, so nothing else in the project leaks
 # into the deployment and the rename to README.md cannot be forgotten.
 set -euo pipefail
@@ -31,17 +31,17 @@ else
   git checkout -q -B main
 fi
 
-echo "==> staging Dockerfile, README.md and razerpay_fraud/"
-rm -rf razerpay_fraud Dockerfile README.md .gitattributes
+echo "==> staging Dockerfile, README.md and razorpay_fraud/"
+rm -rf razorpay_fraud Dockerfile README.md .gitattributes
 cp "$ROOT/Dockerfile" .
 # Without this the Space checks files out with CRLF on Windows, so every run
 # would look like a full-file change and push a pointless commit.
 cp "$ROOT/.gitattributes" .
 cp "$ROOT/deploy/huggingface/README.md" README.md
-mkdir -p razerpay_fraud
+mkdir -p razorpay_fraud
 # Source and the served page only -- no __pycache__, no tests, no out/.
-for f in "$ROOT"/razerpay_fraud/*.py "$ROOT"/razerpay_fraud/*.html; do
-  [ -e "$f" ] && cp "$f" razerpay_fraud/
+for f in "$ROOT"/razorpay_fraud/*.py "$ROOT"/razorpay_fraud/*.html; do
+  [ -e "$f" ] && cp "$f" razorpay_fraud/
 done
 
 git add -A

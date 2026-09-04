@@ -1,11 +1,11 @@
 """Command line entry points.
 
-    python -m razerpay_fraud demo        full pipeline: generate, tune, evaluate, plot
-    python -m razerpay_fraud simulate    write a labelled payment stream to JSONL
-    python -m razerpay_fraud replay      live streaming demo, alerts printed as they fire
-    python -m razerpay_fraud live        serve the live console in a browser
-    python -m razerpay_fraud sweep       rerun across seeds for an error bar
-    python -m razerpay_fraud explain     read back the audit trail for sample alerts
+    python -m razorpay_fraud demo        full pipeline: generate, tune, evaluate, plot
+    python -m razorpay_fraud simulate    write a labelled payment stream to JSONL
+    python -m razorpay_fraud replay      live streaming demo, alerts printed as they fire
+    python -m razorpay_fraud live        serve the live console in a browser
+    python -m razorpay_fraud sweep       rerun across seeds for an error bar
+    python -m razorpay_fraud explain     read back the audit trail for sample alerts
 """
 
 from __future__ import annotations
@@ -279,7 +279,7 @@ def cmd_explain(args) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="razerpay_fraud",
+        prog="razorpay_fraud",
         description="Near-real-time detection of fraud spikes in a payment stream.",
     )
     sub = parser.add_subparsers(dest="command", required=True)

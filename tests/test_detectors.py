@@ -10,12 +10,12 @@ from __future__ import annotations
 
 import unittest
 
-from razerpay_fraud.detectors import (
+from razorpay_fraud.detectors import (
     NaiveCountDetector,
     RuleDetector,
     ramp,
 )
-from razerpay_fraud.features import FEATURE_NAMES
+from razorpay_fraud.features import FEATURE_NAMES
 
 
 def base_values(**overrides) -> dict[str, float]:

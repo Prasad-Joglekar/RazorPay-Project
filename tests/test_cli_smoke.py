@@ -14,7 +14,7 @@ Three layers, cheapest first:
    compiling cannot see, including in modules the CLI only imports lazily
    inside a command function;
 3. the parser is built and every subcommand is dispatched to ``--help``, and the
-   ``python -m razerpay_fraud`` entry point is executed in a real subprocess.
+   ``python -m razorpay_fraud`` entry point is executed in a real subprocess.
 
 Nothing here runs a pipeline. A smoke test that takes a minute is a smoke test
 people stop running.
@@ -32,10 +32,10 @@ import sys
 import unittest
 from pathlib import Path
 
-import razerpay_fraud
-from razerpay_fraud import cli
+import razorpay_fraud
+from razorpay_fraud import cli
 
-PACKAGE_DIR = Path(razerpay_fraud.__file__).parent
+PACKAGE_DIR = Path(razorpay_fraud.__file__).parent
 
 #: Every subcommand the CLI is expected to expose. A new command must be added
 #: here deliberately, so deleting one by accident fails rather than passes.
@@ -44,7 +44,7 @@ EXPECTED_COMMANDS = {"demo", "simulate", "replay", "sweep", "live", "explain"}
 
 def _module_names() -> list[str]:
     return [
-        f"razerpay_fraud.{m.name}"
+        f"razorpay_fraud.{m.name}"
         for m in pkgutil.iter_modules([str(PACKAGE_DIR)])
         # __main__ raises SystemExit on import by design; it is covered by the
         # subprocess test instead.
@@ -127,7 +127,7 @@ class TestParser(unittest.TestCase):
 
 
 class TestEntryPoint(unittest.TestCase):
-    """The real thing: ``python -m razerpay_fraud`` in a fresh interpreter.
+    """The real thing: ``python -m razorpay_fraud`` in a fresh interpreter.
 
     Slower than the in-process tests, so it runs a couple of invocations rather
     than one per command. It is what fails if ``__main__.py`` or the package's
@@ -136,7 +136,7 @@ class TestEntryPoint(unittest.TestCase):
 
     def _run(self, *args: str) -> subprocess.CompletedProcess:
         return subprocess.run(
-            [sys.executable, "-m", "razerpay_fraud", *args],
+            [sys.executable, "-m", "razorpay_fraud", *args],
             capture_output=True,
             text=True,
             timeout=120,

@@ -2,8 +2,8 @@
 
 This is not playback of a saved run. A background thread consumes the payment
 stream in wall-clock time, feeds each payment through the same
-:class:`~razerpay_fraud.features.StreamingFeaturizer` and
-:class:`~razerpay_fraud.detectors.RuleDetector` the offline pipeline uses, and
+:class:`~razorpay_fraud.features.StreamingFeaturizer` and
+:class:`~razorpay_fraud.detectors.RuleDetector` the offline pipeline uses, and
 publishes events the moment they happen. The browser holds one Server-Sent
 Events connection and renders whatever arrives.
 

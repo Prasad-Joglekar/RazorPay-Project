@@ -11,15 +11,15 @@ from __future__ import annotations
 import math
 import unittest
 
-from razerpay_fraud.features import (
+from razorpay_fraud.features import (
     EwmaRate,
     RunningStats,
     SlidingAggregate,
     StreamingFeaturizer,
     haversine_km,
 )
-from razerpay_fraud.schema import Transaction
-from razerpay_fraud.simulator import Simulator, SimulatorConfig
+from razorpay_fraud.schema import Transaction
+from razorpay_fraud.simulator import Simulator, SimulatorConfig
 
 
 def make_txn(

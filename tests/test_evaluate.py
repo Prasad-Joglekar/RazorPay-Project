@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import unittest
 
-from razerpay_fraud.evaluate import (
+from razorpay_fraud.evaluate import (
     CostModel,
     average_precision,
     candidate_thresholds,
@@ -20,7 +20,7 @@ from razerpay_fraud.evaluate import (
     pattern_breakdown,
     pr_curve,
 )
-from razerpay_fraud.schema import Episode, Transaction
+from razorpay_fraud.schema import Episode, Transaction
 
 
 def txn(pid: str, ts: float, amount_inr: float, *, fraud=False, pattern=None, episode=None):

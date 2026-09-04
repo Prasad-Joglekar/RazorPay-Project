@@ -1,6 +1,6 @@
 # Deploying the live console to Hugging Face Spaces
 
-The Space runs `python -m razerpay_fraud live` in a Docker container. Free tier
+The Space runs `python -m razorpay_fraud live` in a Docker container. Free tier
 is enough: the image needs no third-party packages, and the app peaks around
 126 MB with a ~6 second cold start.
 
@@ -19,7 +19,7 @@ At <https://huggingface.co/new-space>:
 ## 2. Push the code
 
 A Space is a git repo. It needs three things at its root: `Dockerfile`,
-`README.md` **with the Hugging Face frontmatter**, and `razerpay_fraud/`.
+`README.md` **with the Hugging Face frontmatter**, and `razorpay_fraud/`.
 
 The helper script assembles exactly that and pushes it:
 
@@ -36,7 +36,7 @@ access token with **write** scope as the password (create one at
 
 ```bash
 git clone https://huggingface.co/spaces/<user>/<space> space
-cp -r razerpay_fraud Dockerfile space/
+cp -r razorpay_fraud Dockerfile space/
 cp deploy/huggingface/README.md space/README.md   # note: renamed to README.md
 cd space && git add -A && git commit -m "Deploy live fraud console" && git push
 ```

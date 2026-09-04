@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import unittest
 
-from razerpay_fraud.schema import FRAUD_PATTERNS, HARD_NEGATIVE_PATTERNS
-from razerpay_fraud.simulator import CITIES, Simulator, SimulatorConfig, haversine_km
+from razorpay_fraud.schema import FRAUD_PATTERNS, HARD_NEGATIVE_PATTERNS
+from razorpay_fraud.simulator import CITIES, Simulator, SimulatorConfig, haversine_km
 
 # A small but structurally complete dataset: every episode type still fires.
 SMALL = SimulatorConfig(days=0.8, n_cards=1500, rate_scale=1.0)
