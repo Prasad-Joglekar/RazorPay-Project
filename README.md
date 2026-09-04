@@ -131,7 +131,21 @@ It binds to localhost, and ground-truth labels ride along in the payload so the
 page can show live precision — both make it a demonstration tool, not something
 to expose to a network.
 
-### Deploying the live console
+### Deploying
+
+**The console as a static page** — free, no account beyond Hugging Face, no card:
+
+```bash
+./deploy/huggingface-static/push-static-space.sh https://huggingface.co/spaces/<user>/<space>
+```
+
+The page is entirely self-contained: all 332 alerts, the timeline and the PR
+curves are embedded, and it makes no network calls at all. Static hosting runs
+it exactly as it runs anywhere else. See
+**[deploy/huggingface-static/](deploy/huggingface-static/)**.
+
+**The live SSE console** needs a Python process. Google Cloud Run's always-free
+tier covers it (a card must be on file, nothing is charged inside the limits):
 
 ```bash
 ./deploy/cloudrun/deploy.sh
